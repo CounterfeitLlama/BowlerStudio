@@ -473,6 +473,7 @@ public class BowlerStudio extends Application {
 			System.out.println("Bowler-Scripting-Kernel Version: " + BowlerKernelBuildInfo.getVersion());
 			System.out.println("JavaCad Version: " + JavaCadBuildInfo.getVersion());
 			System.out.println("Welcome to BowlerStudio!");
+			System.out.println("CounterfeitLlama's version");
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
