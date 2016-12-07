@@ -101,7 +101,7 @@ public class CameraTab extends AbstractBowlerStudioTab {
 	}
 
 	private String getHaarRepo() {
-		return "https://github.com/madhephaestus/DefaultHaarCascade.git";
+		return "https://github.com/CounterfeitLlama/DefaultHaarCascade.git";
 	}
 
 	@Override
