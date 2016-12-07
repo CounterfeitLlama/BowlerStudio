@@ -7,7 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.net.URL;
+import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -15,15 +15,7 @@ import java.util.Map.Entry;
 
 import javax.swing.text.BadLocationException;
 
-import org.eclipse.jetty.server.Connector;
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.handler.DefaultHandler;
-import org.eclipse.jetty.server.handler.HandlerList;
-import org.eclipse.jetty.server.handler.ResourceHandler;
-//import org.mortbay.jetty.nio.SelectChannelConnector;
-import org.eclipse.jgit.api.errors.GitAPIException;
+
 
 //import org.bytedeco.javacpp.DoublePointer;
 
@@ -39,12 +31,8 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 
 
 import javafx.application.Platform;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.ObservableList;
-import javafx.geometry.Side;
+import javafx.scene.Node;
 import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
 import javafx.stage.Stage;
 import com.neuronrobotics.bowlerstudio.assets.AssetFactory;
 import com.neuronrobotics.bowlerstudio.assets.ConfigurationDatabase;
@@ -52,16 +40,14 @@ import com.neuronrobotics.bowlerstudio.scripting.IScriptEventListener;
 import com.neuronrobotics.bowlerstudio.scripting.ScriptingEngine;
 import com.neuronrobotics.bowlerstudio.scripting.ScriptingFileWidget;
 import com.neuronrobotics.bowlerstudio.tabs.LocalFileScriptTab;
-import com.neuronrobotics.bowlerstudio.tabs.WebTab;
 import com.neuronrobotics.bowlerstudio.threed.BowlerStudio3dEngine;
 import com.neuronrobotics.bowlerstudio.threed.MobileBaseCadManager;
 import com.neuronrobotics.imageprovider.AbstractImageProvider;
 import com.neuronrobotics.sdk.common.BowlerAbstractDevice;
 import com.neuronrobotics.sdk.common.Log;
 import com.neuronrobotics.sdk.util.ThreadUtil;
-import com.sun.javafx.scene.control.behavior.TabPaneBehavior;
-import com.sun.javafx.scene.control.skin.TabPaneSkin;
 
+@SuppressWarnings("restriction")
 public class BowlerStudioController  implements
 		IScriptEventListener {
 
@@ -69,7 +55,6 @@ public class BowlerStudioController  implements
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = -2686618188618431477L;
 	private ConnectionManager connectionManager;
 	private BowlerStudio3dEngine jfx3dmanager;
 	private AbstractImageProvider vrCamera;
@@ -212,33 +197,8 @@ public class BowlerStudioController  implements
 		
 	}
 	
-
-//	// Custom function for creation of New Tabs.
-//	private void createAndSelectNewTab(final BowlerStudioController tabPane,
-//			final String title) {
-//
-//
-//			Platform.runLater(() -> {
-//				try {
-//					if(ScriptingEngine.getLoginID() != null)
-//						
-//						addTab(new ScriptingGistTab(title,getHomeUrl(), true), false);
-//				} catch (IOException | InterruptedException e) {
-//					// TODO Auto-generated catch block
-//					e.printStackTrace();
-//				}
-//			});
-//
-//
-//	}
 	
 
-	private Tab createTab() throws IOException, InterruptedException {
-		final WebTab tab = new WebTab(null,
-				 null);
-
-		return tab;
-	}
 
 	public void addTab(Tab tab, boolean closable) {
 
@@ -254,12 +214,20 @@ public class BowlerStudioController  implements
 
 
 
-	private void removeObject(Object p) {
+	private boolean removeObject(Object p) {
 		if (CSG.class.isInstance(p)) {
 			Platform.runLater(() -> {
 				getJfx3dmanager().removeObjects();
 			});
+			return true;
 		} 
+		if (Node.class.isInstance(p)) {
+			getJfx3dmanager().clearUserNode();
+			
+			return true;
+		} 
+		ThreadUtil.wait(20);
+		return false;
 	}
 	
 	public static void setCsg(List<CSG> toadd, File source){
@@ -277,6 +245,23 @@ public class BowlerStudioController  implements
 	public static void addCsg(CSG toadd){
 		addCsg(toadd,null);
 	}
+	
+	public static void setUserNode(List<Node> toadd){
+		Platform.runLater(() -> {
+			getBowlerStudio().getJfx3dmanager().clearUserNode();
+			if(toadd!=null)
+			for(Node c:toadd){
+				getBowlerStudio().getJfx3dmanager().addUserNode(c);
+			}
+		});
+	}
+	public static void addUserNode(Node toadd){
+		Platform.runLater(() -> {
+			if(toadd!=null)
+				getBowlerStudio().getJfx3dmanager().addUserNode(toadd);
+			
+		});
+	}
 	public static void addCsg(CSG toadd, File source){
 		Platform.runLater(() -> {
 			if(toadd!=null)
@@ -285,6 +270,16 @@ public class BowlerStudioController  implements
 		});
 	}
 	private void addObject(Object o, File source) {
+		
+		if (List.class.isInstance(o)) {
+			List<Object> c = (List<Object>) o;
+			for (int i = 0; i < c.size(); i++) {
+				//Log.warning("Loading array Lists with removals " + c.get(i));
+				addObject(c.get(i),  source);
+			}
+			return;
+		} 
+		
 		if (CSG.class.isInstance(o)) {
 			CSG csg = (CSG) o;
 			Platform.runLater(() -> {
@@ -297,6 +292,11 @@ public class BowlerStudioController  implements
 			addTab((Tab) o, true);
 
 		}
+		else if (Node.class.isInstance(o)) {
+
+			addNode((Node) o);
+
+		}
 		
 		if (BowlerAbstractDevice.class.isInstance(o)) {
 			BowlerAbstractDevice bad = (BowlerAbstractDevice) o;
@@ -305,7 +305,12 @@ public class BowlerStudioController  implements
 		}
 	}
 
-	@SuppressWarnings("unchecked")
+	public void addNode(Node o) {
+		getJfx3dmanager().addUserNode(o);
+	}
+
+
+	@SuppressWarnings({ "unchecked" })
 	@Override
 	public void onScriptFinished(Object result, Object Previous,File source) {
 		Log.warning("Loading script results " + result + " previous "
@@ -314,40 +319,31 @@ public class BowlerStudioController  implements
 		// loaded
 
 		ThreadUtil.wait(20);
-		if (ArrayList.class.isInstance(Previous)) {
-			ArrayList<Object> c = (ArrayList<Object>) Previous;
-			for (int i = 0; i < c.size(); i++) {
-				removeObject(c.get(i));
-			}
-		} else {
-			removeObject(Previous);
-		}
+		
+		clearObjects(Previous);
+		
 		//Check if a CSG is coming in and clear the screen first
-		if (ArrayList.class.isInstance(result)) {
-			ArrayList<Object> c = (ArrayList<Object>) result;
-			for (int i = 0; i < c.size(); i++) {
-				if (CSG.class.isInstance(c.get(i))){
-					Platform.runLater(() -> {
-						getJfx3dmanager().removeObjects();
-					});
-					break;
-				}
-			}
-		} else {
-			if (CSG.class.isInstance(result)){
-				Platform.runLater(() -> {
-					getJfx3dmanager().removeObjects();
-				});
-			}
-		}
-		if (ArrayList.class.isInstance(result)) {
-			ArrayList<Object> c = (ArrayList<Object>) result;
+		clearObjects(result);
+		
+		if (List.class.isInstance(result)) {
+			List<Object> c = (List<Object>) result;
 			for (int i = 0; i < c.size(); i++) {
 				//Log.warning("Loading array Lists with removals " + c.get(i));
 				addObject(c.get(i),  source);
 			}
 		} else {
 			addObject(result,  source);
+		}
+	}
+	
+	private void clearObjects(Object o){
+		if (List.class.isInstance(o)) {
+			List<Object> c = (List<Object>) o;
+			for (int i = 0; i < c.size(); i++) {
+				removeObject(c.get(i));
+			}
+		} else {
+			removeObject(o);
 		}
 	}
 
@@ -416,8 +412,28 @@ public class BowlerStudioController  implements
 	}
 
 
-	public void setJfx3dmanager(BowlerStudio3dEngine jfx3dmanager) {
+	private void setJfx3dmanager(BowlerStudio3dEngine jfx3dmanager) {
 		this.jfx3dmanager = jfx3dmanager;
+	}
+
+
+	public boolean isDoneLoadingTutorials() {
+		return doneLoadingTutorials;
+	}
+
+
+	public void setDoneLoadingTutorials(boolean doneLoadingTutorials) {
+		this.doneLoadingTutorials = doneLoadingTutorials;
+	}
+
+
+	public ConnectionManager getConnectionManager() {
+		return connectionManager;
+	}
+
+
+	public void setConnectionManager(ConnectionManager connectionManager) {
+		this.connectionManager = connectionManager;
 	}
 
 	

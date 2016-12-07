@@ -50,6 +50,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Group;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.PerspectiveCamera;
 import javafx.scene.Scene;
@@ -144,7 +145,8 @@ public class BowlerStudio extends Application {
 	@SuppressWarnings("unchecked")
 	public static void main(String[] args) throws Exception {
 		
-				
+		CSG.setDefaultOptType(CSG.OptType.CSG_BOUND);
+		
 
 		if (args.length == 0) {
 			// ScriptingEngine.logout();
@@ -366,7 +368,7 @@ public class BowlerStudio extends Application {
 				getLogViewRefStatic().setText("");
 		});
 	}
-	public static void setOverlayLeft(TreeView<String> tree){
+	public static void setOverlayLeft(Node tree){
 		BowlerStudio.creatureLab3dController.setOverlayLeft(tree);
 	}
 	public static  void clearOverlayLeft(){

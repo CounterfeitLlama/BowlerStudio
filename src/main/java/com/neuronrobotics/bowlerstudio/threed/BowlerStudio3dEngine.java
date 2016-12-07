@@ -103,6 +103,7 @@ import javafx.scene.SnapshotParameters;
 import javafx.scene.SubScene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.CustomMenuItem;
@@ -173,6 +174,8 @@ public class BowlerStudio3dEngine extends JFXPanel {
 	/** The axis group. */
 	final Group axisGroup = new Group();
 
+	/** The grid group. */
+	final Group gridGroup = new Group();
 	/** The world. */
 	final Xform world = new Xform();
 
@@ -225,6 +228,8 @@ public class BowlerStudio3dEngine extends JFXPanel {
 	private final Group lookGroup = new Group();
 	/** The look group. */
 	private final Group focusGroup = new Group();
+	/** The user group. */
+	private final Group userGroup = new Group();
 	/** The scene. */
 	private SubScene scene;
 
@@ -325,8 +330,26 @@ public class BowlerStudio3dEngine extends JFXPanel {
 			getFlyingCamera().setGlobalToFiducialTransform(defautcameraView);
 			getFlyingCamera().updatePositions();
 		});
-
-		controls.getChildren().addAll(home);
+		
+		Button clear = new Button("Clear");
+		clear.setGraphic(AssetFactory.loadIcon("Clear-Screen.png"));
+		clear.setOnAction(event -> {
+			clearUserNode();
+			removeObjects();
+		});
+		CheckBox ruler = new CheckBox("Show Ruler");
+		ruler.setSelected(true);
+		ruler.setOnAction((event) -> {
+		    boolean selected = ruler.isSelected();
+		    //System.out.println("CheckBox Action (selected: " + selected + ")");
+		    if(selected)
+		    	showAxis();
+		    else
+		    	hideAxis();
+		});
+		
+		
+		controls.getChildren().addAll(home,ruler,clear);
 		return new Group(controls);
 	}
 
@@ -660,6 +683,7 @@ public class BowlerStudio3dEngine extends JFXPanel {
 		// Log.warning("Adding new axis");
 		return current;
 	}
+	
 
 	private void prepAllItems(ObservableList<MenuItem> items, EventHandler<MouseEvent> exited,
 			EventHandler<MouseEvent> entered) {
@@ -843,7 +867,7 @@ public class BowlerStudio3dEngine extends JFXPanel {
 						zrulerImage.getTransforms().add(zRuler);
 						rulerImage.getTransforms().add(xp);
 						yrulerImage.getTransforms().add(yRuler);
-						axisGroup.getChildren().addAll(zrulerImage, rulerImage, yrulerImage, groundView);
+						gridGroup.getChildren().addAll(zrulerImage, rulerImage, yrulerImage, groundView);
 					});
 				} catch (Exception e) {
 					// TODO Auto-generated catch block
@@ -874,9 +898,38 @@ public class BowlerStudio3dEngine extends JFXPanel {
 		ground = new Group();
 		ground.getTransforms().add(groundPlacment);
 		focusGroup.getChildren().add(getVirtualcam().getCameraFrame());
-		axisGroup.getChildren().addAll(yText, zText, xText, ground, focusGroup);
-		world.getChildren().addAll(axisGroup, lookGroup);
+		
+		gridGroup.getChildren().addAll(yText, zText, xText, ground);
+		showAxis();
+		axisGroup.getChildren().addAll(focusGroup,userGroup);
+		world.getChildren().addAll(lookGroup,axisGroup);
+		
 
+	}
+	public void addUserNode(Node n){
+		BowlerStudioModularFrame.getBowlerStudioModularFrame().showCreatureLab();
+
+		Platform.runLater(()->userGroup.getChildren().add(n));
+	}
+
+	public void removeUserNode(Node n){
+		Platform.runLater(()->userGroup.getChildren().remove(n));
+	}
+	public void clearUserNode(){
+		Platform.runLater(()->userGroup.getChildren().clear());
+	}
+	
+	public void showAxis(){
+		Platform.runLater(()->axisGroup.getChildren().add(gridGroup));
+		for(MeshView a: axisMap.keySet()){
+			axisMap.get(a).show();
+		}
+	}
+	public void hideAxis(){
+		Platform.runLater(()->axisGroup.getChildren().remove(gridGroup));
+		for(MeshView a: axisMap.keySet()){
+			axisMap.get(a).hide();
+		}
 	}
 
 	public void cancelSelection() {
@@ -962,8 +1015,9 @@ public class BowlerStudio3dEngine extends JFXPanel {
 				} else if (me.isMiddleButtonDown()) {
 
 				} else if (me.isSecondaryButtonDown()) {
-					moveCamera(new TransformNR(mouseDeltaX * modifierFactor * modifier * 10,
-							mouseDeltaY * modifierFactor * modifier * 10, 0, new RotationNR()), 0);
+					double depth = -100/getVirtualcam().getZoomDepth() ;
+					moveCamera(new TransformNR(mouseDeltaX * modifierFactor * modifier * 1/depth,
+							mouseDeltaY * modifierFactor * modifier * 1/depth, 0, new RotationNR()), 0);
 				}
 			}
 		});
@@ -973,13 +1027,14 @@ public class BowlerStudio3dEngine extends JFXPanel {
 			public void handle(ScrollEvent t) {
 				if (ScrollEvent.SCROLL == t.getEventType()) {
 
-					// double zoomFactor = (t.getDeltaY());
+					 double zoomFactor =- (t.getDeltaY())*getVirtualcam().getZoomDepth()/3000;
 					//
 					// double z = camera.getTranslateY();
 					// double newZ = z + zoomFactor;
 					// camera.setTranslateY(newZ);
-					// System.out.println("Z = "+newZ);
-					getVirtualcam().setZoomDepth(getVirtualcam().getZoomDepth() + t.getDeltaY());
+					 //System.out.println("Z = "+zoomFactor);
+					
+					getVirtualcam().setZoomDepth(getVirtualcam().getZoomDepth() + zoomFactor);
 				}
 				t.consume();
 			}
