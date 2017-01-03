@@ -356,7 +356,7 @@ public class JogWidget extends GridPane implements ITaskSpaceUpdateListenerNR, I
 					//double rxl=0;
 					double ryl=inc/20*slider;
 					double rzl=inc/2*rz;
-					TransformNR current = new TransformNR(0,0,0,new RotationNR( 0,0, rzl));
+					TransformNR current = new TransformNR(0,0,0,new RotationNR( 0,rzl, 0));
 					current.translateX(inc*x);
 					current.translateY(inc*y);
 					current.translateZ(inc*slider);
@@ -407,18 +407,18 @@ public class JogWidget extends GridPane implements ITaskSpaceUpdateListenerNR, I
 				if(controlThreadRunning){
 					if(getMobilebase()==null){
 						try {
-							Log.enableDebugPrint();
+							//Log.enableDebugPrint();
 							//System.out.println("Jogging to: "+toSet);
 							getKin().setDesiredTaskSpaceTransform(toSet,  toSeconds);
 						} catch (Exception e) {
-							BowlerStudioController.highlightException(null, e);
+							//BowlerStudioController.highlightException(null, e);
 						}
 					}else{
 						//toSet.setZ(0);
 						try {
 							getMobilebase().DriveArc(toSet, toSeconds);
 						} catch (Exception e) {
-							BowlerStudioController.highlightException(null, e);
+							//BowlerStudioController.highlightException(null, e);
 						}
 					}
 					controlThreadRunning=false;

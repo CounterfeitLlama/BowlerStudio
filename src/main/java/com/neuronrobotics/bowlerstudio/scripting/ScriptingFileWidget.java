@@ -103,14 +103,15 @@ import com.neuronrobotics.bowlerstudio.assets.AssetFactory;
 import com.neuronrobotics.imageprovider.AbstractImageProvider;
 import com.neuronrobotics.imageprovider.OpenCVImageProvider;
 import com.neuronrobotics.nrconsole.util.CommitWidget;
+import com.neuronrobotics.nrconsole.util.FileChangeWatcher;
 import com.neuronrobotics.nrconsole.util.FileSelectionFactory;
+import com.neuronrobotics.nrconsole.util.FileWatchDeviceWrapper;
 import com.neuronrobotics.nrconsole.util.GroovyFilter;
 import com.neuronrobotics.replicator.driver.BowlerBoardDevice;
 import com.neuronrobotics.sdk.common.BowlerAbstractDevice;
 import com.neuronrobotics.sdk.common.Log;
 import com.neuronrobotics.sdk.dyio.DyIO;
 import com.neuronrobotics.sdk.pid.GenericPIDDevice;
-import com.neuronrobotics.sdk.util.FileChangeWatcher;
 import com.neuronrobotics.sdk.util.IFileChangeListener;
 import com.neuronrobotics.sdk.util.ThreadUtil;
 import com.neuronrobotics.sdk.addons.kinematics.xml.*;
@@ -466,17 +467,14 @@ public class ScriptingFileWidget extends BorderPane implements
 		}
 		if(!langaugeType.getIsTextFile())
 			return;
-		if (watcher != null) {
-			watcher.close();
-		}
 		 try {
-			 watcher = new FileChangeWatcher(currentFile);
+			 watcher = FileChangeWatcher.watch(currentFile);
 			 watcher.addIFileChangeListener(this);
-			 watcher.start();
 		 } catch (IOException e) {
 			 // TODO Auto-generated catch block
 			 e.printStackTrace();
 		 }
+		 
 	}
 
 	private void updateFile() {
@@ -508,6 +506,7 @@ public class ScriptingFileWidget extends BorderPane implements
 	public void save() {
 		// TODO Auto-generated method stub
 		try {
+			System.out.println("Writing file contents");
 			BufferedWriter writer = new BufferedWriter(new FileWriter(
 					currentFile));
 			writer.write(getCode());

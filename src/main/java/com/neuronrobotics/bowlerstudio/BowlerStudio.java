@@ -1,21 +1,5 @@
 package com.neuronrobotics.bowlerstudio;
 
-import java.awt.Desktop;
-import java.io.File;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLConnection;
-import java.util.ArrayList;
-import java.util.Map;
-
-import javax.swing.UIManager;
-
-import org.kohsuke.github.GHMyself;
-import org.kohsuke.github.GHRepository;
-
 import com.neuronrobotics.bowlerkernel.BowlerKernelBuildInfo;
 import com.neuronrobotics.bowlerstudio.assets.AssetFactory;
 import com.neuronrobotics.bowlerstudio.assets.BowlerStudioResourceFactory;
@@ -30,18 +14,15 @@ import com.neuronrobotics.imageprovider.OpenCVJNILoader;
 import com.neuronrobotics.javacad.JavaCadBuildInfo;
 import com.neuronrobotics.replicator.driver.Slic3r;
 import com.neuronrobotics.sdk.addons.kinematics.DHParameterKinematics;
-import com.neuronrobotics.sdk.addons.kinematics.FirmataBowler;
 import com.neuronrobotics.sdk.addons.kinematics.FirmataLink;
 import com.neuronrobotics.sdk.addons.kinematics.LinkConfiguration;
-import com.neuronrobotics.sdk.addons.kinematics.LinkFactory;
 import com.neuronrobotics.sdk.addons.kinematics.MobileBase;
 import com.neuronrobotics.sdk.common.BowlerAbstractDevice;
+import com.neuronrobotics.sdk.common.ByteList;
 import com.neuronrobotics.sdk.common.DeviceManager;
 import com.neuronrobotics.sdk.common.IDeviceAddedListener;
 import com.neuronrobotics.sdk.common.Log;
 import com.neuronrobotics.sdk.config.SDKBuildInfo;
-import com.neuronrobotics.sdk.pid.VirtualGenericPIDDevice;
-import com.neuronrobotics.sdk.ui.AbstractConnectionPanel;
 import com.neuronrobotics.sdk.util.ThreadUtil;
 
 import eu.mihosoft.vrl.v3d.CSG;
@@ -51,18 +32,27 @@ import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Group;
 import javafx.scene.Node;
-import javafx.scene.Parent;
-import javafx.scene.PerspectiveCamera;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
-import javafx.scene.control.Tab;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.TreeView;
-import javafx.scene.image.Image;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.stage.Window;
+
+import org.apache.commons.math3.geometry.euclidean.threed.RotationOrder;
+import org.kohsuke.github.GHMyself;
+import org.kohsuke.github.GHRepository;
+
+import javax.swing.*;
+import java.awt.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.ArrayList;
+import java.util.Map;
 
 public class BowlerStudio extends Application {
 
@@ -77,22 +67,51 @@ public class BowlerStudio extends Application {
 	private BowlerStudioModularFrame modularFrame;
 	private static 	String firstVer = "";
 	private static class Console extends OutputStream {
-		
+		private static final int LengthOfOutputLog = 1000;
+		ByteList incoming = new ByteList();
+		Thread update = new Thread(()->{
+			while(true){
+				ThreadUtil.wait(150);
+				String text = incoming.asString();
+				incoming.clear();
+				appendText(text);
+			}
+			
+		});
+		public Console(){
+			update.start();
+		}
 	    public void appendText(String valueOf) {
 	    	try{
 	    		BowlerStudioModularFrame.getBowlerStudioModularFrame().showTerminal();
 	    	}catch(NullPointerException ex){
 	    		// frame not open yet
 	    	}
-			Platform.runLater(() -> {
-				if (getLogViewRefStatic() != null)
-					getLogViewRefStatic().appendText(valueOf);
-			});
+	    	if (getLogViewRefStatic() != null){
+		    	String text =getLogViewRefStatic().getText();
+		    	if(text.length()>LengthOfOutputLog){
+		    		
+		    		Platform.runLater(() -> {
+		    			getLogViewRefStatic().deleteText(0, text.length()-LengthOfOutputLog);
+
+		    			Platform.runLater(() ->getLogViewRefStatic().appendText(valueOf));
+						
+					});
+		    	}else{
+					Platform.runLater(() -> {
+							getLogViewRefStatic().appendText(valueOf);
+						
+					});
+		    	}
+	    	}
 			System.err.print(valueOf);
 	    }
 	
 	    public void write(int b) throws IOException {
-	        appendText(String.valueOf((char)b));
+	    	incoming.add(b);
+	        //appendText(String.valueOf((char)b));
+//	        if(b=='[')
+//	        	new RuntimeException().printStackTrace();
 	    }
 	}
 	public static OutputStream getOut() {
@@ -112,7 +131,7 @@ public class BowlerStudio extends Application {
 	        conn.getInputStream();                                                                                                                                                                                                               
 	        setHasnetwork(true);                                                                                                                                                                                                                      
 	    } catch (Exception e) {                                                                                                                                                                                                             
-	        // we assuming we have no access to the server and run off of the chached gists.    
+	        // we assuming we have no access to the server and run off of the cached gists.
 	    	setHasnetwork(false);                                                                                                                                                                                                                              
 	    }  
 	}
@@ -153,20 +172,33 @@ public class BowlerStudio extends Application {
 			ScriptingEngine.setLoginManager(new GitHubLoginManager());
 			try{
 				ScriptingEngine.runLogin();
-			}catch(java.io.IOException e){
+			}catch(Exception e){
 				//e.printStackTrace();
 				ScriptingEngine.setupAnyonmous();
 				
 			}
 			if (ScriptingEngine.isLoginSuccess()){
 				
-				if(BowlerStudio.hasNetwork())
+				if(BowlerStudio.hasNetwork()){
 					ScriptingEngine.setAutoupdate(true);
+					
+				}
 				firstVer = (String) ConfigurationDatabase.getObject("BowlerStudioConfigs", "firstVersion",
 						StudioBuildInfo.getVersion());
-				ScriptingEngine.filesInGit("https://github.com/CommonWealthRobotics/BowlerStudioConfiguration.git");
-				ConfigurationDatabase.setObject("BowlerStudioConfigs", "currentVersion",
+				String lastVersion = (String) ConfigurationDatabase.getObject("BowlerStudioConfigs", "skinBranch",
 						StudioBuildInfo.getVersion());
+				if(!lastVersion.contentEquals(StudioBuildInfo.getVersion())){
+					System.err.println("\n\nnew version\n\n");
+					File dir = ScriptingEngine.fileFromGit(AssetFactory.getGitSource(),"master", "Home.png").getParentFile();
+					AssetFactory.deleteFolder(dir);// clear out old assets
+					ConfigurationDatabase.setObject("BowlerStudioConfigs", "skinBranch",
+							StudioBuildInfo.getVersion());
+					
+					
+					
+				}else{
+					System.err.println("Studio version is the same");
+				}
 				String myAssets =AssetFactory.getGitSource();
 				if(BowlerStudio.hasNetwork()){
 						org.kohsuke.github.GitHub github = ScriptingEngine.getGithub();
@@ -176,8 +208,7 @@ public class BowlerStudio extends Application {
 							if(entry.getKey().contentEquals(AssetFactory.repo)){
 								GHRepository ghrepo= entry.getValue();
 								myAssets = ghrepo.getGitTransportUrl().replaceAll("git://", "https://");
-								
-								
+							
 							}
 						
 						}
@@ -187,8 +218,12 @@ public class BowlerStudio extends Application {
 						(String) ConfigurationDatabase.getObject("BowlerStudioConfigs", "skinRepo",
 								myAssets),
 						(String) ConfigurationDatabase.getObject("BowlerStudioConfigs", "skinBranch",
-								"master")
+								StudioBuildInfo.getVersion())
 						);
+				ConfigurationDatabase.setObject("BowlerStudioConfigs", "currentVersion",
+						StudioBuildInfo.getVersion());
+				ScriptingEngine.filesInGit("https://github.com/CommonWealthRobotics/BowlerStudioConfiguration.git");
+			
 				
 				// to set a new repo
 				//ConfigurationDatabase.setObject("BowlerStudioConfigs", "skinRepo", "https://github.com/madhephaestus/BowlerStudioImageAssets.git");
@@ -332,7 +367,7 @@ public class BowlerStudio extends Application {
 	/**
 	* @author Sainath 
 	* @version 1.0
-	* @param URL url - The URL of the tab that needs to be opened
+	* @param url - The URL of the tab that needs to be opened
 	* @return None
 	*/
 	public static void openUrlInNewTab(URL url) {
@@ -341,7 +376,7 @@ public class BowlerStudio extends Application {
 	/**
 	* @author Sainath 
 	* @version 1.0
-	* @param String msg - message that needs to be spoken
+	* @param msg - message that needs to be spoken
 	* @return an integer
 	*/
 	public static int speak(String msg) {
@@ -470,6 +505,10 @@ public class BowlerStudio extends Application {
 				@Override
 				public void onDeviceRemoved(BowlerAbstractDevice arg0) {}
 			});
+			Log.enableDebugPrint(false);
+			//Log.enableWarningPrint();
+			//Log.enableDebugPrint();
+			//Log.enableErrorPrint();
 			System.out.println("BowlerStudio First Version: " + firstVer);
 			System.out.println("Java-Bowler Version: " + SDKBuildInfo.getVersion());
 			System.out.println("Bowler-Scripting-Kernel Version: " + BowlerKernelBuildInfo.getVersion());

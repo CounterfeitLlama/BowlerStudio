@@ -14,6 +14,7 @@ import com.bulletphysics.dynamics.constraintsolver.TypedConstraint;
 import com.bulletphysics.linearmath.DefaultMotionState;
 import com.bulletphysics.linearmath.Transform;
 import com.bulletphysics.util.ObjectArrayList;
+import com.neuronrobotics.bowlerstudio.BowlerStudio;
 //import com.neuronrobotics.sdk.addons.kinematics.gui.TransformFactory;
 import com.neuronrobotics.sdk.addons.kinematics.math.TransformNR;
 
@@ -31,6 +32,7 @@ public class CSGPhysicsManager  implements IPhysicsManager{
 	protected ArrayList<CSG> baseCSG=null;
 	private Transform updateTransform = new Transform();
 	private IPhysicsUpdate updateManager = null;
+	private PhysicsCore core;
 
 	public CSGPhysicsManager(ArrayList<CSG> baseCSG, Vector3f start, double mass,PhysicsCore core){
 		this(baseCSG,new Transform(new Matrix4f(new Quat4f(0, 0, 0, 1), start, 1.0f)),mass,true, core);
@@ -83,7 +85,10 @@ public class CSGPhysicsManager  implements IPhysicsManager{
 		setup(fallShape,pose,mass,core);
 	}
 	public void setup(CollisionShape fallShape,Transform pose, double mass, PhysicsCore core ){
+		this.setCore(core);
+		
 		// setup the motion state for the ball
+		System.out.println("Starting Object at "+TransformFactory.bulletToNr(pose));
 		DefaultMotionState fallMotionState = new DefaultMotionState(
 				pose);
 		// This we're going to give mass so it responds to gravity
@@ -93,14 +98,19 @@ public class CSGPhysicsManager  implements IPhysicsManager{
 				fallInertia);
 		fallRigidBodyCI.additionalDamping = true;
 		setFallRigidBody(new RigidBody(fallRigidBodyCI));
-		update(40);
+		//update(40);
 	}
 	
 
 	public void update(float timeStep){		
 		fallRigidBody.getMotionState().getWorldTransform(updateTransform);
 		if(getUpdateManager()!=null){
-			getUpdateManager().update(timeStep);
+			try{
+				getUpdateManager().update(timeStep);
+			}catch(Exception e){
+				BowlerStudio.printStackTrace(e);
+				throw e;
+			}
 		}
 	}
 	
@@ -138,6 +148,14 @@ public class CSGPhysicsManager  implements IPhysicsManager{
 	}
 	public void setUpdateManager(IPhysicsUpdate updateManager) {
 		this.updateManager = updateManager;
+	}
+
+	public PhysicsCore getCore() {
+		return core;
+	}
+
+	public void setCore(PhysicsCore core) {
+		this.core = core;
 	}
 
 

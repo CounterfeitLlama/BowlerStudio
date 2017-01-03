@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import com.neuronrobotics.bowlerstudio.BowlerStudioController;
 import com.neuronrobotics.bowlerstudio.scripting.ScriptingEngine;
 import com.neuronrobotics.nrconsole.util.FileSelectionFactory;
+import com.neuronrobotics.nrconsole.util.FileWatchDeviceWrapper;
 import com.neuronrobotics.nrconsole.util.GroovyFilter;
 import com.neuronrobotics.nrconsole.util.XmlFilter;
 import com.neuronrobotics.sdk.addons.kinematics.AbstractKinematicsNR;
@@ -31,7 +32,6 @@ import com.neuronrobotics.sdk.addons.kinematics.math.TransformNR;
 import com.neuronrobotics.sdk.common.BowlerAbstractDevice;
 import com.neuronrobotics.sdk.common.IDeviceConnectionEventListener;
 import com.neuronrobotics.sdk.common.Log;
-import com.neuronrobotics.sdk.util.FileChangeWatcher;
 import com.neuronrobotics.sdk.util.IFileChangeListener;
 
 import eu.mihosoft.vrl.v3d.CSG;
@@ -59,7 +59,6 @@ public class DhChainWidget extends Group implements  IDeviceConnectionEventListe
 	private File kinematicsFile;
 
 	private ArrayList<DHLinkWidget> widgets = new ArrayList<>();
-	private FileChangeWatcher watcher;
 	private IOnEngineeringUnitsChange externalListener;
 	public DhChainWidget(AbstractKinematicsNR device2,IOnEngineeringUnitsChange externalListener){
 		this.device = device2;
@@ -263,42 +262,20 @@ public class DhChainWidget extends Group implements  IDeviceConnectionEventListe
 	}
 
 	public void setKinematicsFile(File kinematicsFile) {
-		if(kinematicsFile!=null){
-			if (watcher != null) {
+		FileWatchDeviceWrapper.watch(device, kinematicsFile, (fileThatChanged, event) -> {
 
-				watcher.close();
-			}
 			try {
-				watcher = new FileChangeWatcher(kinematicsFile);
-				watcher.addIFileChangeListener(new IFileChangeListener() {
-
-					@Override
-					public void onFileChange(File fileThatChanged,
-							WatchEvent event) {
-						try {
-							setKinematics();
-						} catch (Exception ex) {
-							ex.printStackTrace();
-						}
-
-					}
-				});
-				watcher.start();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				setKinematics();
+			} catch (Exception ex) {
+				ex.printStackTrace();
 			}
-		}
+		});
 		this.kinematicsFile = kinematicsFile;
 	}
 
 	@Override
 	public void onDisconnect(BowlerAbstractDevice source) {
-		// TODO Auto-generated method stub
-		if (watcher != null) {
-			
-			watcher.close();
-		}
+
 	}
 
 	@Override

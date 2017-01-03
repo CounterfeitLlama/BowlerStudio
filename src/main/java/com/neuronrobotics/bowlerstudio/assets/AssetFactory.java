@@ -1,33 +1,24 @@
 package com.neuronrobotics.bowlerstudio.assets;
 
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-
-import javax.imageio.ImageIO;
-
-import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.api.errors.InvalidRemoteException;
-import org.eclipse.jgit.api.errors.TransportException;
-import org.kohsuke.github.GHMyself;
-import org.kohsuke.github.GHRepository;
-
-import com.neuronrobotics.bowlerstudio.BowlerStudio;
+import com.neuronrobotics.bowlerstudio.StudioBuildInfo;
 import com.neuronrobotics.bowlerstudio.scripting.ScriptingEngine;
-
 import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
+
 public class AssetFactory {
 	public static final String repo = "BowlerStudioImageAssets";
-	private static String gitSource = "https://github.com/madhephaestus/"+repo+".git"; //madhephaestus
+	private static String gitSource = "https://github.com/madhephaestus/" + repo + ".git";
 	private static HashMap<String , Image> cache =new HashMap<>();
 	private static HashMap<String , FXMLLoader> loaders =new HashMap<>();
 	private static String assetRepoBranch = "master";
@@ -35,6 +26,7 @@ public class AssetFactory {
 	static{
 
 			try {
+				
 				loadAllAssets();
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
@@ -52,7 +44,7 @@ public class AssetFactory {
 		if(loaders.get(file)==null || refresh){
 
 			loaders.put(file, new FXMLLoader(fileURL));
-			
+
 		}
 		loaders.get(file).setLocation(fileURL);
 		return loaders.get(file);
@@ -142,10 +134,11 @@ public class AssetFactory {
 		System.err.println("Using my version of assets: "+gitSource+":"+assetRepoBranch);
 		setAssetRepoBranch( assetRepoBranch);
 		AssetFactory.gitSource = gitSource;
+		cache.clear();
 		loadAllAssets();
 	}
 	private static void loadAllAssets() throws Exception{
-		ArrayList<String> files = ScriptingEngine.filesInGit(gitSource);
+		ArrayList<String> files = ScriptingEngine.filesInGit(gitSource,StudioBuildInfo.getVersion(), null);
 		for(String file:files){
 			loadAsset(file);
 		}
@@ -155,5 +148,19 @@ public class AssetFactory {
 	}
 	public static void setAssetRepoBranch(String assetRepoBranch) {
 		AssetFactory.assetRepoBranch = assetRepoBranch;
+		
+	}
+	public static void deleteFolder(File folder) {
+	    File[] files = folder.listFiles();
+	    if(files!=null) { //some JVMs return null for empty dirs
+	        for(File f: files) {
+	            if(f.isDirectory()) {
+	                deleteFolder(f);
+	            } else {
+	                f.delete();
+	            }
+	        }
+	    }
+	    folder.delete();
 	}
 }
